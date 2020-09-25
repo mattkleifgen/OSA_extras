@@ -1,0 +1,12 @@
+---
+
+- name: Install pip package
+  pip:
+    name: "{{ item }}"
+    extra_args: "{{ pip_install_options|default('') }}"
+    virtualenv: "{{ virtualenv }}"
+  with_items: "{{ pip_install_packages }}"
+  when: pip_install_packages is defined
+  register: pip_install
+  until: pip_install|success
+  retries: 2

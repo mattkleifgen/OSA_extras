@@ -1,0 +1,77 @@
+---
+# Copyright 2018-Present, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NOTE:
+# Please add customizations into this main playbook or reference each
+# customization via includ blocks.
+
+# Please use these available tags to include execution:
+
+# preinstall: All tasks marked with this tag are only executed after bootstrap
+#             phase and include all necessary changes in order to fully install
+#             packages, patch or configuration needed to get all services
+#             operational in the desired state.
+
+# environment-config: This is similar to nova-config or other tags where only
+#                     configuration files are changed.
+#
+
+# postinstall:
+
+# always: Please attach "always" if you want to make sure that the task in
+#         in consideration is always executed, regardeless of previous tag used
+
+- name: Install EMC Unity driver for nova compute
+  hosts: nova_compute
+  tasks:
+    - include: "common-tasks/pip-install.yml"
+  vars:
+    pip_install_packages:
+      - "storops==1.2.2"
+    pip_install_options: "--isolated"
+    virtualenv: "/openstack/venvs/nova-{{ rpc_release }}"
+  vars_files:
+    - "vars/osa-patches.yml"
+
+- name: Install EMC Unity driver for cinder
+  hosts: cinder_volume
+  tasks:
+    - include: "common-tasks/pip-install.yml"
+  vars:
+    pip_install_packages:
+      - "storops==1.2.2"
+    pip_install_options: "--isolated"
+    virtualenv: "/openstack/venvs/cinder-{{ rpc_release }}"
+  vars_files:
+    - "vars/osa-patches.yml"
+
+- name: Install EMC Unity environment
+  hosts: cinder_volume:evos-compute041
+  tasks:
+    - apt:
+        name: "multipath-tools"
+        state: "present"
+    - apt:
+        name: "sg3-utils"
+        state: "present"
+    - copy:
+        src: "files/multipath.conf"
+        dest: "/etc/multipath.conf"
+        mode: 0660
+      notify: "multipath-tools restart"
+  handlers:
+    - include: "handlers/main.yml"
+  tags:
+    - environment-config
